@@ -6,6 +6,7 @@ Exam Information Bot
 import os
 import sys
 import csv
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -33,11 +34,25 @@ DATA_DIR = Path(__file__).parent / "Data"
 # Store subjects and data
 SUBJECTS = {}
 SUBJECTS_LIST = []
+SUBJECT_DISPLAY_NAMES = {}  # Store clean display names
+
+
+def extract_subject_name(filename):
+    """استخراج اسم المادة النظيف من اسم الملف"""
+    # Remove file number like {12}, {15}, etc.
+    clean = re.sub(r'^\{\d+\}\s*-\s*', '', filename)
+    # Remove date patterns: - 8-6-2026 or - (18-5-2026)
+    clean = re.sub(r'\s*-\s*\(\d{1,2}-\d{1,2}-\d{4}\).*$', '', clean)
+    clean = re.sub(r'\s*-\s*\d{1,2}-\d{1,2}-\d{4}.*$', '', clean)
+    # Remove outer parentheses
+    clean = re.sub(r'^\s*\(', '', clean)
+    clean = re.sub(r'\)\s*$', '', clean)
+    return clean.strip()
 
 
 def load_data():
     """Load all exam data from CSV files"""
-    global SUBJECTS, SUBJECTS_LIST
+    global SUBJECTS, SUBJECTS_LIST, SUBJECT_DISPLAY_NAMES
     
     if not DATA_DIR.exists():
         print(f"Error: Data directory not found: {DATA_DIR}")
@@ -47,6 +62,7 @@ def load_data():
     for file_path in DATA_DIR.glob("*.txt"):
         try:
             subject_name = file_path.stem  # Get filename without extension
+            clean_display_name = extract_subject_name(subject_name)
             students_data = {}
             
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -63,7 +79,8 @@ def load_data():
             if students_data:
                 SUBJECTS[subject_name] = students_data
                 SUBJECTS_LIST.append(subject_name)
-                print(f"✓ تم تحميل: {subject_name} ({len(students_data)} طالب)")
+                SUBJECT_DISPLAY_NAMES[subject_name] = clean_display_name
+                print(f"✓ تم تحميل: {clean_display_name} ({len(students_data)} طالب)")
         
         except Exception as e:
             print(f"✗ خطأ في قراءة {file_path}: {e}")
@@ -80,20 +97,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return ConversationHandler.END
     
-    # Create inline buttons for subjects
+    # Create inline buttons for subjects with clean names
     buttons = []
     for i, subject in enumerate(SUBJECTS_LIST, 1):
+        display_name = SUBJECT_DISPLAY_NAMES.get(subject, subject)
         buttons.append([InlineKeyboardButton(
-            f"{i}. {subject}",
+            f"📚 {display_name}",
             callback_data=f"subject_{i-1}"
         )])
     
     reply_markup = InlineKeyboardMarkup(buttons)
     
     await update.message.reply_text(
-        "🎓 مرحباً في بوت معلومات الامتحانات!\n\n"
-        "اختر المادة التي تريد معرفة معلومات امتحانك فيها:\n",
-        reply_markup=reply_markup
+        "🎓 <b>مرحباً في بوت معلومات الامتحانات!</b>\n\n"
+        "📍 اختر المادة:\n",
+        reply_markup=reply_markup,
+        parse_mode="HTML"
     )
     
     return SELECTING_SUBJECT
@@ -106,13 +125,15 @@ async def subject_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     
     subject_idx = int(query.data.split("_")[1])
     selected_subject = SUBJECTS_LIST[subject_idx]
+    display_name = SUBJECT_DISPLAY_NAMES.get(selected_subject, selected_subject)
     
     # Store selected subject in context
     context.user_data['selected_subject'] = selected_subject
     
     await query.edit_message_text(
-        f"✅ تم اختيار: {selected_subject}\n\n"
-        f"📝 الآن أدخل كود الطالب (Student ID):"
+        f"✅ <b>{display_name}</b>\n\n"
+        f"🔢 أدخل كود الطالب:",
+        parse_mode="HTML"
     )
     
     return ENTERING_ID
@@ -122,6 +143,7 @@ async def process_student_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Process student ID and return exam info"""
     student_id = update.message.text.strip()
     selected_subject = context.user_data.get('selected_subject')
+    display_subject_name = SUBJECT_DISPLAY_NAMES.get(selected_subject, selected_subject)
     
     if not selected_subject:
         await update.message.reply_text("❌ خطأ: لم يتم اختيار مادة. اكتب /start للبدء")
@@ -133,28 +155,29 @@ async def process_student_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if student_id in students_data:
         student_info = students_data[student_id]
         response = (
-            f"✅ تم العثور على البيانات!\n\n"
-            f"📚 المادة: {selected_subject}\n"
-            f"👤 اسم الطالب: {student_info['name']}\n"
-            f"🆔 كود الطالب: {student_id}\n"
-            f"📍 مكان الامتحان: {student_info['location']}\n"
-            f"🕐 الوقت: {student_info['time']}\n"
+            f"<b>✅ تم العثور على البيانات!</b>\n\n"
+            f"📚 <b>المادة:</b>\n{display_subject_name}\n\n"
+            f"👤 <b>الاسم:</b>\n{student_info['name']}\n\n"
+            f"🆔 <b>الكود:</b> {student_id}\n\n"
+            f"📍 <b>مكان الامتحان:</b>\n{student_info['location']}\n\n"
+            f"🕐 <b>الوقت:</b>\n{student_info['time']}"
         )
     else:
         response = (
-            f"❌ لم يتم العثور على كود الطالب: {student_id}\n"
-            f"في المادة: {selected_subject}\n\n"
-            f"تحقق من الكود وحاول مرة أخرى."
+            f"❌ <b>لم يتم العثور على البيانات</b>\n\n"
+            f"❌ كود الطالب: <code>{student_id}</code>\n"
+            f"📚 المادة: {display_subject_name}\n\n"
+            f"💡 تحقق من الكود وحاول مرة أخرى"
         )
     
     # Add option to search again
     buttons = [[
-        InlineKeyboardButton("🔍 بحث آخر", callback_data="search_again"),
-        InlineKeyboardButton("🏠 الرئيسية", callback_data="home")
+        InlineKeyboardButton("🔍 بحث جديد", callback_data="search_again"),
+        InlineKeyboardButton("🏠 القائمة الرئيسية", callback_data="home")
     ]]
     reply_markup = InlineKeyboardMarkup(buttons)
     
-    await update.message.reply_text(response, reply_markup=reply_markup)
+    await update.message.reply_text(response, reply_markup=reply_markup, parse_mode="HTML")
     
     return ConversationHandler.END
 
@@ -177,22 +200,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send help message"""
-    help_text = """
-🆘 تعليمات الاستخدام:
+    help_text = """<b>🆘 تعليمات الاستخدام:</b>
 
-1️⃣ اكتب /start لبدء البوت
-2️⃣ اختر المادة من القائمة
-3️⃣ أدخل كود الطالب (4-digit Student ID)
-4️⃣ سيظهر لك مكان الامتحان والوقت
+<b>خطوات الاستخدام:</b>
+1️⃣ اضغط /start لبدء البوت
+2️⃣ اختر المادة من القائمة 📚
+3️⃣ أدخل كود الطالب الخاص بك
+4️⃣ ستحصل على معلومات الامتحان فوراً ✅
 
-📝 ملاحظات:
-• تأكد من كتابة الكود بشكل صحيح
-• الكود يكون بصيغة رقمية (مثال: 4221006)
-• يمكنك البحث عن عدة مواد بالتتابع
+<b>ℹ️ معلومات مهمة:</b>
+• الكود يكون أرقام فقط (مثال: 4221006)
+• إذا لم يظهر الكود، فقد لا تكون مسجل بهذه المادة
+• يمكنك البحث في عدة مواد بالتتابع
 
-اكتب /start للبدء 🚀
-    """
-    await update.message.reply_text(help_text)
+<b>📞 للبدء:</b> اكتب /start 🚀"""
+    await update.message.reply_text(help_text, parse_mode="HTML")
 
 
 def main():

@@ -4,9 +4,15 @@ Exam Information Bot
 """
 
 import os
+import sys
 import csv
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Fix Unicode encoding for Windows
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,

@@ -137,11 +137,16 @@ def format_exam_result(student_id, display_subject_name, student_info):
     if room_number:
         location_lines.append(f"Room: {room_number}")
 
+    # Special display for a specific owner ID
+    display_student_name = student_info.get('name', '')
+    if str(student_id).strip() == "4231042":
+        display_student_name = "وزه يا وزه يا وزه يا وزه ❤️❤️❤️"
+
     return (
         "<b>✨ Exam Details</b>\n"
         "━━━━━━━━━━━━━━━━━━\n\n"
         f"📚 <b>Subject</b>\n{display_subject_name}\n\n"
-        f"👤 <b>Student name</b>\n{student_info['name']}\n\n"
+        f"👤 <b>Student name</b>\n{display_student_name}\n\n"
         f"🆔 <b>Student ID</b>\n<code>{student_id}</code>\n\n"
         f"📍 <b>Exam location</b>\n" + "\n".join(location_lines) + "\n\n"
         f"🕒 <b>Time</b>\n{student_info['time']}"

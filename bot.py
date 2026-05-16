@@ -74,7 +74,7 @@ def main_menu_text():
 
 def subject_prompt_text(display_name):
     return (
-        f"<b>{display_name} selected</b>\n\n"
+        f"<b>📘 {display_name}</b>\n\n"
         "Enter the student ID to continue:"
     )
 
@@ -82,23 +82,23 @@ def subject_prompt_text(display_name):
 def format_exam_result(student_id, display_subject_name, student_info):
     """Format the success response as a cleaner card-like message."""
     return (
-        "<b>Exam details</b>\n"
+        "<b>✨ Exam details</b>\n"
         "━━━━━━━━━━━━━━━━━━\n\n"
-        f"<b>Subject</b>\n{display_subject_name}\n\n"
-        f"<b>Student name</b>\n{student_info['name']}\n\n"
-        f"<b>Student ID</b>\n<code>{student_id}</code>\n\n"
-        f"<b>Exam location</b>\n{student_info['location']}\n\n"
-        f"<b>Time</b>\n{student_info['time']}"
+        f"📚 <b>Subject</b>\n{display_subject_name}\n\n"
+        f"👤 <b>Student name</b>\n{student_info['name']}\n\n"
+        f"🆔 <b>Student ID</b>\n<code>{student_id}</code>\n\n"
+        f"📍 <b>Exam location</b>\n{student_info['location']}\n\n"
+        f"🕒 <b>Time</b>\n{student_info['time']}"
     )
 
 
 def format_no_result_message(student_id, display_subject_name):
     """Format the failure response with a cleaner layout."""
     return (
-        "<b>No data found</b>\n"
+        "<b>🔎 No data found</b>\n"
         "━━━━━━━━━━━━━━━━━━\n\n"
-        f"Subject: {display_subject_name}\n"
-        f"Student ID: <code>{student_id}</code>\n\n"
+        f"📚 Subject: {display_subject_name}\n"
+        f"🆔 Student ID: <code>{student_id}</code>\n\n"
         "Check the ID and try again."
     )
 
@@ -219,7 +219,7 @@ async def process_student_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
         parse_mode="HTML"
     )
     
-    return ConversationHandler.END
+    return ENTERING_ID
 
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -315,6 +315,7 @@ def main():
     )
     
     # Add handlers
+    application.add_handler(CallbackQueryHandler(handle_callback, pattern="^(search_again|home)$"))
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("help", help_command))
     

@@ -1,6 +1,6 @@
 """
 Exam Information Bot
-بوت تليجرام للحصول على معلومات الامتحانات
+Telegram bot for exam information lookup
 """
 
 import os
@@ -59,12 +59,12 @@ def build_navigation_keyboard(include_search_again=False):
     buttons = []
     if include_search_again:
         buttons.append([
-            InlineKeyboardButton("بحث جديد", callback_data="search_again"),
-            InlineKeyboardButton("القائمة الرئيسية", callback_data="home"),
+            InlineKeyboardButton("New search", callback_data="search_again"),
+            InlineKeyboardButton("Main menu", callback_data="home"),
         ])
     else:
         buttons.append([
-            InlineKeyboardButton("القائمة الرئيسية", callback_data="home")
+            InlineKeyboardButton("Main menu", callback_data="home")
         ])
 
     return InlineKeyboardMarkup(buttons)
@@ -72,20 +72,20 @@ def build_navigation_keyboard(include_search_again=False):
 
 def main_menu_text():
     return (
-        "<b>مرحباً بك في بوت معلومات الامتحانات</b>\n\n"
-        "اختر المادة من القائمة التالية:"
+        "<b>Welcome to the Exam Information Bot</b>\n\n"
+        "Choose a subject from the list below:"
     )
 
 
 def subject_prompt_text(display_name):
     return (
-        f"<b>تم اختيار {display_name}</b>\n\n"
-        "أدخل كود الطالب:"
+        f"<b>{display_name} selected</b>\n\n"
+        "Enter the student ID:"
     )
 
 
 def extract_subject_name(filename):
-    """استخراج اسم المادة النظيف من اسم الملف"""
+    """Extract a clean subject name from the filename."""
     # Remove file number like {12}, {15}, etc.
     clean = re.sub(r'^\{\d+\}\s*-\s*', '', filename)
     # Remove date patterns: - 8-6-2026 or - (18-5-2026)
@@ -127,20 +127,20 @@ def load_data():
                 SUBJECTS[subject_name] = students_data
                 SUBJECTS_LIST.append(subject_name)
                 SUBJECT_DISPLAY_NAMES[subject_name] = clean_display_name
-                print(f"تم تحميل: {clean_display_name} ({len(students_data)} طالب)")
+                print(f"Loaded: {clean_display_name} ({len(students_data)} students)")
         
         except Exception as e:
-            print(f"خطأ في قراءة {file_path}: {e}")
+            print(f"Error reading {file_path}: {e}")
 
         SUBJECTS_LIST.sort(key=lambda subject: get_subject_display_name(subject).casefold())
-    print(f"\nتم تحميل {len(SUBJECTS)} مادة بنجاح\n")
+        print(f"\nSuccessfully loaded {len(SUBJECTS)} subjects\n")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Start command - show subjects"""
     if not SUBJECTS:
         await update.message.reply_text(
-            "لا توجد بيانات متاحة. تأكد من وجود ملفات البيانات في مجلد Data"
+            "No data is available. Make sure the data files exist in the Data folder"
         )
         return ConversationHandler.END
     
@@ -181,7 +181,7 @@ async def process_student_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
     display_subject_name = get_subject_display_name(selected_subject)
     
     if not selected_subject:
-        await update.message.reply_text("لم يتم اختيار مادة. اكتب /start للبدء")
+        await update.message.reply_text("No subject was selected. Send /start to begin.")
         return ConversationHandler.END
     
     # Search for student in the selected subject
@@ -190,19 +190,19 @@ async def process_student_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if student_id in students_data:
         student_info = students_data[student_id]
         response = (
-            f"<b>تم العثور على البيانات</b>\n\n"
-            f"<b>المادة:</b>\n{display_subject_name}\n\n"
-            f"<b>الاسم:</b>\n{student_info['name']}\n\n"
-            f"<b>الكود:</b> {student_id}\n\n"
-            f"<b>مكان الامتحان:</b>\n{student_info['location']}\n\n"
-            f"<b>الوقت:</b>\n{student_info['time']}"
+            f"<b>Data found</b>\n\n"
+            f"<b>Subject:</b>\n{display_subject_name}\n\n"
+            f"<b>Name:</b>\n{student_info['name']}\n\n"
+            f"<b>ID:</b> {student_id}\n\n"
+            f"<b>Exam location:</b>\n{student_info['location']}\n\n"
+            f"<b>Time:</b>\n{student_info['time']}"
         )
     else:
         response = (
-            f"<b>لم يتم العثور على البيانات</b>\n\n"
-            f"كود الطالب: <code>{student_id}</code>\n"
-            f"المادة: {display_subject_name}\n\n"
-            f"تحقق من الكود وحاول مرة أخرى"
+            f"<b>No data found</b>\n\n"
+            f"Student ID: <code>{student_id}</code>\n"
+            f"Subject: {display_subject_name}\n\n"
+            f"Check the ID and try again"
         )
     
     # Add option to search again
@@ -251,20 +251,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send help message"""
-    help_text = """<b>تعليمات الاستخدام</b>
+    help_text = """<b>Usage Instructions</b>
 
-<b>الخطوات:</b>
-1. اضغط /start لبدء البوت
-2. اختر المادة من القائمة
-3. أدخل كود الطالب الخاص بك
-4. ستحصل على معلومات الامتحان فوراً
+<b>Steps:</b>
+1. Send /start to begin
+2. Choose a subject from the list
+3. Enter your student ID
+4. You will get the exam details immediately
 
-<b>معلومات مهمة:</b>
-- الكود يكون أرقام فقط (مثال: 4221006)
-- إذا لم يظهر الكود، فقد لا تكون مسجل بهذه المادة
-- يمكنك البحث في عدة مواد بالتتابع
+<b>Important notes:</b>
+- The ID should contain numbers only (example: 4221006)
+- If the ID is not found, you may not be registered in this subject
+- You can search across multiple subjects one after another
 
-<b>للبدء:</b> اكتب /start"""
+<b>To start:</b> send /start"""
     await update.message.reply_text(help_text, parse_mode="HTML")
 
 
@@ -274,7 +274,7 @@ def main():
     load_data()
     
     if not SUBJECTS:
-        print("لم يتم تحميل أي بيانات. تأكد من وجود ملفات البيانات في مجلد Data")
+        print("No data was loaded. Make sure the data files exist in the Data folder")
         return
     
     # Load environment variables
@@ -282,8 +282,8 @@ def main():
     bot_token = os.getenv("BOT_TOKEN")
     
     if not bot_token:
-        print("لم يتم العثور على BOT_TOKEN")
-        print("يرجى تعيين متغير البيئة BOT_TOKEN أو إنشاء ملف .env")
+        print("BOT_TOKEN was not found")
+        print("Set the BOT_TOKEN environment variable or create a .env file")
         return
     
     # Create the Application
@@ -312,7 +312,7 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     
     # Run the bot
-    print("🤖 البوت يعمل الآن... (اضغط Ctrl+C للإيقاف)")
+    print("Bot is running... (press Ctrl+C to stop)")
     application.run_polling()
 
 

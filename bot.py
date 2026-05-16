@@ -36,6 +36,22 @@ SUBJECTS = {}
 SUBJECTS_LIST = []
 SUBJECT_DISPLAY_NAMES = {}  # Store clean display names
 
+LOCATION_MAP = {
+    "lab 1": {"faculty": "Faculty of Artificial Intelligence", "room": "410"},
+    "lab 2": {"faculty": "Faculty of Artificial Intelligence", "room": "411"},
+    "lab 3": {"faculty": "Faculty of Artificial Intelligence", "room": "412"},
+    "lab 4": {"faculty": "Faculty of Artificial Intelligence", "room": "414"},
+    "lab 5": {"faculty": "Faculty of Artificial Intelligence", "room": "420"},
+    "lab 6": {"faculty": "Faculty of Artificial Intelligence", "room": "421"},
+    "lab 7": {"faculty": "Faculty of Artificial Intelligence", "room": "428"},
+    "lab 8": {"faculty": "Faculty of Artificial Intelligence", "room": "306"},
+    "lab 9": {"faculty": "Faculty of Artificial Intelligence", "room": "307"},
+    "lab 10": {"faculty": "Faculty of Artificial Intelligence", "room": "425"},
+    "ph1": {"faculty": "Faculty of Pharmacy", "room": "8"},
+    "ph2": {"faculty": "Faculty of Pharmacy", "room": "323"},
+    "pt": {"faculty": "Faculty of Physical Therapy", "room": "308"},
+}
+
 
 def get_subject_display_name(subject_key):
     """Return the clean subject name for display."""
@@ -73,6 +89,31 @@ async def update_callback_message(query, text, reply_markup, parse_mode="HTML"):
     )
 
 
+def normalize_location(location_text):
+    """Normalize a location string into a lookup key."""
+    cleaned = location_text.strip().lower()
+    cleaned = re.sub(r"\s*\(.*?\)\s*", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    cleaned = cleaned.replace("lab", "lab ") if re.fullmatch(r"lab\d+", cleaned) else cleaned
+    cleaned = re.sub(r"\blab\s+(\d+)", r"lab \1", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def resolve_location_details(location_text):
+    """Return the mapped faculty and room for a location if available."""
+    key = normalize_location(location_text)
+    match = re.search(r"\((\d+)\)", location_text)
+    room_from_text = match.group(1) if match else None
+    mapped = LOCATION_MAP.get(key)
+
+    if mapped:
+        room = room_from_text or mapped["room"]
+        return mapped["faculty"], room
+
+    return None, room_from_text
+
+
 def main_menu_text():
     return (
         "<b>Welcome to the Exam Information Bot</b>\n\n"
@@ -89,13 +130,20 @@ def subject_prompt_text(display_name):
 
 def format_exam_result(student_id, display_subject_name, student_info):
     """Format the success response as a cleaner card-like message."""
+    faculty_name, room_number = resolve_location_details(student_info['location'])
+    location_lines = [f"{student_info['location']}"]
+    if faculty_name:
+        location_lines.append(f"Faculty: {faculty_name}")
+    if room_number:
+        location_lines.append(f"Room: {room_number}")
+
     return (
         "<b>✨ Exam Details</b>\n"
         "━━━━━━━━━━━━━━━━━━\n\n"
         f"📚 <b>Subject</b>\n{display_subject_name}\n\n"
         f"👤 <b>Student name</b>\n{student_info['name']}\n\n"
         f"🆔 <b>Student ID</b>\n<code>{student_id}</code>\n\n"
-        f"📍 <b>Exam location</b>\n{student_info['location']}\n\n"
+        f"📍 <b>Exam location</b>\n" + "\n".join(location_lines) + "\n\n"
         f"🕒 <b>Time</b>\n{student_info['time']}"
     )
 

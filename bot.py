@@ -58,14 +58,9 @@ def build_navigation_keyboard(include_search_again=False):
     """Build a small navigation keyboard for the result screens."""
     buttons = []
     if include_search_again:
-        buttons.append([
-            InlineKeyboardButton("New search", callback_data="search_again"),
-            InlineKeyboardButton("Main menu", callback_data="home"),
-        ])
-    else:
-        buttons.append([
-            InlineKeyboardButton("Main menu", callback_data="home")
-        ])
+        buttons.append([InlineKeyboardButton("New search", callback_data="search_again")])
+
+    buttons.append([InlineKeyboardButton("Main menu", callback_data="home")])
 
     return InlineKeyboardMarkup(buttons)
 
@@ -80,7 +75,31 @@ def main_menu_text():
 def subject_prompt_text(display_name):
     return (
         f"<b>{display_name} selected</b>\n\n"
-        "Enter the student ID:"
+        "Enter the student ID to continue:"
+    )
+
+
+def format_exam_result(student_id, display_subject_name, student_info):
+    """Format the success response as a cleaner card-like message."""
+    return (
+        "<b>Exam details</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        f"<b>Subject</b>\n{display_subject_name}\n\n"
+        f"<b>Student name</b>\n{student_info['name']}\n\n"
+        f"<b>Student ID</b>\n<code>{student_id}</code>\n\n"
+        f"<b>Exam location</b>\n{student_info['location']}\n\n"
+        f"<b>Time</b>\n{student_info['time']}"
+    )
+
+
+def format_no_result_message(student_id, display_subject_name):
+    """Format the failure response with a cleaner layout."""
+    return (
+        "<b>No data found</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        f"Subject: {display_subject_name}\n"
+        f"Student ID: <code>{student_id}</code>\n\n"
+        "Check the ID and try again."
     )
 
 
@@ -189,21 +208,9 @@ async def process_student_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     if student_id in students_data:
         student_info = students_data[student_id]
-        response = (
-            f"<b>Data found</b>\n\n"
-            f"<b>Subject:</b>\n{display_subject_name}\n\n"
-            f"<b>Name:</b>\n{student_info['name']}\n\n"
-            f"<b>ID:</b> {student_id}\n\n"
-            f"<b>Exam location:</b>\n{student_info['location']}\n\n"
-            f"<b>Time:</b>\n{student_info['time']}"
-        )
+        response = format_exam_result(student_id, display_subject_name, student_info)
     else:
-        response = (
-            f"<b>No data found</b>\n\n"
-            f"Student ID: <code>{student_id}</code>\n"
-            f"Subject: {display_subject_name}\n\n"
-            f"Check the ID and try again"
-        )
+        response = format_no_result_message(student_id, display_subject_name)
     
     # Add option to search again
     await update.message.reply_text(
